@@ -1,6 +1,7 @@
+require 'pry'
 module GameHelpers
-  def generate_code
-    Array.new(4) { Guess.new(rand(1..4)) }
+  def display()
+    @item.nil? ? print('- ') : print("#{@item} ")
   end
 end
 
@@ -8,12 +9,12 @@ class Game
   include GameHelpers
   def initialize
     @turn_counter = 0
-    @secret_code = SecretCode.new
     @board = Board.new
   end
 
   def display_board
     @board.secret_code.display
+    puts
     @board.rows.each(&:display)
   end
 
@@ -21,12 +22,12 @@ class Game
     puts(error) unless error.nil?
     puts('Enter your guess!')
     input = gets.chomp.to_i
-    input = get_guess('Invalid Guess') unless input.between?(1, 4) # recursion is cool
+    input = get_guess('Invalid Guess') unless input.between?(1, 8) # recursion is cool
     input
   end
 
   def save_guess(guess)
-    @board.rows[-1 - (@turn_counter / 4)].guesses[@turn_counter % 4].set(guess)
+    @board.rows[-1 - (@turn_counter / 4)].set(@turn_counter % 4, guess)
     @turn_counter += 1
   end
 
@@ -41,12 +42,12 @@ class Game
 
     display_board
     save_guess(get_guess)
-    generate_feedback if ((@turn_counter + 1) % 4).zero? # If just completed a row. Generate feedback for row
+    generate_feedback if (@turn_counter % 4).zero? # If just completed a row. Generate feedback for row
     turn # recursion is neat
   end
 
   def generate_feedback
-    @board.generate_feedback(-1 - (@turn_counter / 4), @secret_code) # current row access through reverse index
+    @board.generate_feedback(-(@turn_counter / 4)) # current row access through reverse index
   end
 
   def win; end
@@ -61,66 +62,87 @@ class Board
     @rows = Array.new(12) { Row.new }
   end
 
-  def generate_feedback(row, secret_code)
-    @rows[row].generate_feedback(secret_code)
+  def generate_feedback(row)
+    @rows[row].generate_feedback(@secret_code)
   end
 end
 
 class Guess
+  include GameHelpers
   attr_reader :guess
   def initialize(guess = nil)
-    @guess = guess
-  end
-
-  def display
-    @guess.nil? ? print('- ') : print("#{@guess} ")
-  end
-
-  def set(guess)
     @guess = guess
   end
 end
 
 class Feedback
+  include GameHelpers
   attr_reader :feedback
   def initialize
     @feedback = nil
-  end
-
-  def display
-    @feedback.nil? ? print('-') : print('TODO FEEDBACK')
   end
 end
 
 class Row
   attr_reader :guesses
   def initialize
-    @guesses = Array.new(4) { Guess.new }
-    @feedback = Array.new(4) { Feedback.new }
+    @guesses = Array.new(4) { nil }
+    @feedback = Array.new(4) { nil }
   end
 
   def display
-    @guesses.each(&:display)
-    print(' | ')
-    @feedback.each(&:display)
+    @guesses.each do |guess|
+      guess.nil? ? print('- ') : print("#{guess} ")
+    end
+    print('| ')
+    @feedback.each do |item|
+      item.nil? ? print('- ') : print("#{item} ")
+    end
     puts
   end
 
+  def set(num, input)
+    @guesses[num] = input
+  end
+
   def generate_feedback(secret_code)
-    matches = []
-    @guesses
+    puts("Exact Matches: #{exact_match(secret_code)}")
+    puts("Color Matches: #{color_match(secret_code)}")
+  end
+
+  def exact_match(secret_code)
+    codes = secret_code.codes
+    matches = 0
+    codes.each_index do |index|
+      matches += 1 if codes[index] == @guesses[index]
+    end
+    matches
+  end
+
+  def color_match(secret_code)
+    codes = secret_code.codes
+    matches = codes.reduce(0) do |result, code|
+      result += 1 if guesses.include?(code)
+      result
+    end
+    matches
   end
 end
 
 class SecretCode < Row
-  include GameHelpers
+  attr_reader :codes
   def initialize
-    @guesses = generate_code
+    @codes = []
+    gen_codes(8) until @codes.length == 4
+  end
+
+  def gen_codes(max)
+    code = rand(1..max)
+    @codes.push(code) unless @codes.include?(code)
   end
 
   def display
-    @guesses.each(&:display)
-    puts
+    @codes.each { |code| print("#{code} ") }
   end
 end
 
