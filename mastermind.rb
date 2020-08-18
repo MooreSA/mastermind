@@ -1,12 +1,4 @@
-require 'pry'
-module GameHelpers
-  def display()
-    @item.nil? ? print('- ') : print("#{@item} ")
-  end
-end
-
 class Game
-  include GameHelpers
   def initialize
     @turn_counter = 0
     @board = Board.new
@@ -32,17 +24,19 @@ class Game
   end
 
   def check_win
-    # todo
-    false
+    @board.rows[-(@turn_counter / 4)].guesses == @board.secret_code.codes
   end
 
   def turn
-    return win if check_win
     return lose if @turn_counter >= 48
 
     display_board
     save_guess(get_guess)
-    generate_feedback if (@turn_counter % 4).zero? # If just completed a row. Generate feedback for row
+    if (@turn_counter % 4).zero?
+      return win if check_win
+
+      generate_feedback # If just completed a row. Generate feedback for row
+    end
     turn # recursion is neat
   end
 
@@ -50,9 +44,13 @@ class Game
     @board.generate_feedback(-(@turn_counter / 4)) # current row access through reverse index
   end
 
-  def win; end
+  def win
+    puts 'You Win!'
+  end
 
-  def lose; end
+  def lose
+    puts 'You Lose!'
+  end
 end
 
 class Board
@@ -67,37 +65,23 @@ class Board
   end
 end
 
-class Guess
-  include GameHelpers
-  attr_reader :guess
-  def initialize(guess = nil)
-    @guess = guess
-  end
-end
-
-class Feedback
-  include GameHelpers
-  attr_reader :feedback
-  def initialize
-    @feedback = nil
-  end
-end
-
 class Row
-  attr_reader :guesses
+  attr_reader :guesses, :feedback
   def initialize
     @guesses = Array.new(4) { nil }
     @feedback = Array.new(4) { nil }
   end
 
-  def display
-    @guesses.each do |guess|
-      guess.nil? ? print('- ') : print("#{guess} ")
-    end
-    print('| ')
-    @feedback.each do |item|
+  def write_line(line)
+    line.each do |item|
       item.nil? ? print('- ') : print("#{item} ")
     end
+  end
+
+  def display
+    write_line(@guesses)
+    print('| ')
+    write_line(@feedback)
     puts
   end
 
@@ -106,8 +90,10 @@ class Row
   end
 
   def generate_feedback(secret_code)
-    puts("Exact Matches: #{exact_match(secret_code)}")
-    puts("Color Matches: #{color_match(secret_code)}")
+    num_exact = exact_match(secret_code)
+    num_color_match = color_match(secret_code)
+    @feedback = ([0] * num_exact) + ([1] * (num_color_match - num_exact))
+    @feedback.push(nil) until @feedback.length == 4
   end
 
   def exact_match(secret_code)
@@ -146,5 +132,4 @@ class SecretCode < Row
   end
 end
 
-new_game = Game.new
-new_game.turn
+Game.new.turn
